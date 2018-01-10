@@ -1,7 +1,12 @@
 if ( .Platform$OS.type == 'windows' ) memory.limit( 256000 )
 
 library(lodown)
-lodown( "saeb" , output_dir = file.path( getwd() ) )
+this_sample_break <- Sys.getenv( "this_sample_break" )
+saeb_cat <- get_catalog( "saeb" , output_dir = file.path( getwd() ) )
+record_categories <- ceiling( seq( nrow( saeb_cat ) ) / ceiling( nrow( saeb_cat ) / 9 ) )
+saeb_cat <- saeb_cat[ record_categories == this_sample_break , ]
+lodown( "saeb" , saeb_cat )
+if( any( saeb_cat$year == 2015 ) ){
 library(DBI)
 dbdir <- file.path( getwd() , "SQLite.db" )
 db <- dbConnect( RSQLite::SQLite() , dbdir )
@@ -39,19 +44,11 @@ dbGetQuery( db ,
 	FROM npi 
 	GROUP BY provider_gender_code" 
 )
-dbSendQuery( db , 
-	"CREATE FUNCTION 
-		div_noerror(l DOUBLE, r DOUBLE) 
-	RETURNS DOUBLE 
-	EXTERNAL NAME calc.div_noerror" 
-)
 dbGetQuery( db , 
 	"SELECT 
 		is_sole_proprietor , 
-		div_noerror( 
-			COUNT(*) , 
-			( SELECT COUNT(*) FROM npi ) 
-		) AS share_is_sole_proprietor
+		COUNT(*) / ( SELECT COUNT(*) FROM npi ) 
+			AS share_is_sole_proprietor
 	FROM npi 
 	GROUP BY is_sole_proprietor" 
 )
@@ -117,3 +114,4 @@ saeb_tbl %>%
 	group_by( provider_gender_code ) %>%
 	summarize( mean = mean( provider_enumeration_year ) )
 dbGetQuery( db , "SELECT COUNT(*) FROM npi" )
+}
