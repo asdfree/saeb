@@ -105,7 +105,7 @@ dbGetQuery( db ,
 	FROM npi 
 	GROUP BY provider_gender_code" 
 )
-saeb_three_columns_df <- 
+saeb_slim_df <- 
 	dbGetQuery( db , 
 		"SELECT 
 			provider_enumeration_year , 
@@ -114,14 +114,15 @@ saeb_three_columns_df <-
 		FROM npi" 
 	)
 
-t.test( provider_enumeration_year ~ individual , saeb_three_columns_df )
-this_table <- table( saeb_three_columns_df[ , c( "individual" , "is_sole_proprietor" ) ] )
+t.test( provider_enumeration_year ~ individual , saeb_slim_df )
+this_table <-
+	table( saeb_slim_df[ , c( "individual" , "is_sole_proprietor" ) ] )
 
 chisq.test( this_table )
 glm_result <- 
 	glm( 
 		provider_enumeration_year ~ individual + is_sole_proprietor , 
-		data = saeb_three_columns_df
+		data = saeb_slim_df
 	)
 
 summary( glm_result )
