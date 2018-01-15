@@ -4,7 +4,7 @@ Title: saeb
 Version: 0.1.0
 Author: Anthony Joseph Damico
 Maintainer: Anthony Joseph Damico <ajdamico@gmail.com>
-Description: A continuous integration package, tested on ajdamico/asdfree commit 1db1b53be770cd2bf37295fbd3f08014ee1e5a25 ajdamico/lodown commit 9dd8b8b54e5ffbf9c15dc77b60dba39419d8bc69
+Description: A continuous integration package, tested on ajdamico/asdfree commit 1db1b53be770cd2bf37295fbd3f08014ee1e5a25 ajdamico/lodown commit 463f7e4ba93d8fe9b40af227f3f110aea4d25486
 License: GPL-3
 Imports: DBI, lodown, dplyr, dbplyr
 Encoding: UTF-8
