@@ -5,136 +5,121 @@ options("lodown.cachaca.savecache"=FALSE)
 library(lodown)
 this_sample_break <- Sys.getenv( "this_sample_break" )
 saeb_cat <- get_catalog( "saeb" , output_dir = file.path( getwd() ) )
-record_categories <- ceiling( seq( nrow( saeb_cat ) ) / ceiling( nrow( saeb_cat ) / 9 ) )
+record_categories <- ceiling( seq( nrow( saeb_cat ) ) / ceiling( nrow( saeb_cat ) / 3 ) )
 saeb_cat <- saeb_cat[ record_categories == this_sample_break , ]
 lodown( "saeb" , saeb_cat )
 if( any( saeb_cat$year == 2015 ) ){
-library(DBI)
-dbdir <- file.path( getwd() , "SQLite.db" )
-db <- dbConnect( RSQLite::SQLite() , dbdir )
+column_names <-
+	names( 
+		read.csv( 
+			file.path( getwd() , "2015" , "escolas.csv" ) , 
+			nrow = 1 )[ FALSE , , ] 
+	)
 
-dbSendQuery( db , "ALTER TABLE npi ADD COLUMN individual INTEGER" )
+column_names <- gsub( "\\." , "_" , tolower( column_names ) )
+
+column_types <-
+	ifelse( 
+		SAScii::parse.SAScii(
+			file.path( getwd() , "2015" , "import.sas" ) 
+		) , 
+		'n' , 'c' 
+	)
+
+columns_to_import <-
+	c( "entity_type_code" , "provider_gender_code" , "provider_enumeration_date" ,
+	"is_sole_proprietor" , "provider_business_practice_location_address_state_name" )
+
+stopifnot( all( columns_to_import %in% column_names ) )
+
+saeb_df <- 
+	data.frame( 
+		readr::read_csv( 
+			file.path( getwd() , 
+				"escolas.csv" ) , 
+			col_names = columns_to_import , 
+			col_types = 
+				paste0( 
+					ifelse( column_names %in% columns_to_import , column_types , '_' ) , 
+					collapse = "" 
+				) ,
+			skip = 1
+		) 
+	)
+
+dbSendQuery( db , "ALTER TABLE ADD COLUMN individual INTEGER" )
 
 dbSendQuery( db , 
-	"UPDATE npi 
+	"UPDATE 
 	SET individual = 
 		CASE WHEN entity_type_code = 1 THEN 1 ELSE 0 END" 
 )
 
-dbSendQuery( db , "ALTER TABLE npi ADD COLUMN provider_enumeration_year INTEGER" )
+dbSendQuery( db , "ALTER TABLE ADD COLUMN provider_enumeration_year INTEGER" )
 
 dbSendQuery( db , 
-	"UPDATE npi 
+	"UPDATE 
 	SET provider_enumeration_year = 
 		CAST( SUBSTRING( provider_enumeration_date , 7 , 10 ) AS INTEGER )" 
 )
-dbGetQuery( db , "SELECT COUNT(*) FROM npi" )
+nrow( saeb_df )
 
-dbGetQuery( db ,
-	"SELECT
-		provider_gender_code ,
-		COUNT(*) 
-	FROM npi
-	GROUP BY provider_gender_code"
-)
-dbGetQuery( db , "SELECT AVG( provider_enumeration_year ) FROM npi" )
+table( saeb_df[ , "provider_gender_code" ] , useNA = "always" )
+mean( saeb_df[ , "provider_enumeration_year" ] )
 
-dbGetQuery( db , 
-	"SELECT 
-		provider_gender_code , 
-		AVG( provider_enumeration_year ) AS mean_provider_enumeration_year
-	FROM npi 
-	GROUP BY provider_gender_code" 
+tapply(
+	saeb_df[ , "provider_enumeration_year" ] ,
+	saeb_df[ , "provider_gender_code" ] ,
+	mean 
 )
-dbGetQuery( db , 
-	"SELECT 
-		is_sole_proprietor , 
-		COUNT(*) / ( SELECT COUNT(*) FROM npi ) 
-			AS share_is_sole_proprietor
-	FROM npi 
-	GROUP BY is_sole_proprietor" 
-)
-dbGetQuery( db , "SELECT SUM( provider_enumeration_year ) FROM npi" )
+prop.table( table( saeb_df[ , "is_sole_proprietor" ] ) )
 
-dbGetQuery( db , 
-	"SELECT 
-		provider_gender_code , 
-		SUM( provider_enumeration_year ) AS sum_provider_enumeration_year 
-	FROM npi 
-	GROUP BY provider_gender_code" 
+prop.table(
+	table( saeb_df[ , c( "is_sole_proprietor" , "provider_gender_code" ) ] ) ,
+	margin = 2
 )
-RSQLite::initExtension( db )
+sum( saeb_df[ , "provider_enumeration_year" ] )
 
-dbGetQuery( db , 
-	"SELECT 
-		LOWER_QUARTILE( provider_enumeration_year ) , 
-		MEDIAN( provider_enumeration_year ) , 
-		UPPER_QUARTILE( provider_enumeration_year ) 
-	FROM npi" 
+tapply(
+	saeb_df[ , "provider_enumeration_year" ] ,
+	saeb_df[ , "provider_gender_code" ] ,
+	sum 
 )
+quantile( saeb_df[ , "provider_enumeration_year" ] , 0.5 )
 
-dbGetQuery( db , 
-	"SELECT 
-		provider_gender_code , 
-		LOWER_QUARTILE( provider_enumeration_year ) AS lower_quartile_provider_enumeration_year , 
-		MEDIAN( provider_enumeration_year ) AS median_provider_enumeration_year , 
-		UPPER_QUARTILE( provider_enumeration_year ) AS upper_quartile_provider_enumeration_year
-	FROM npi 
-	GROUP BY provider_gender_code" 
+tapply(
+	saeb_df[ , "provider_enumeration_year" ] ,
+	saeb_df[ , "provider_gender_code" ] ,
+	quantile ,
+	0.5 
 )
-dbGetQuery( db ,
-	"SELECT
-		AVG( provider_enumeration_year )
-	FROM npi
-	WHERE provider_business_practice_location_address_state_name = 'CA'"
-)
-RSQLite::initExtension( db )
+sub_saeb_df <- subset( saeb_df , provider_business_practice_location_address_state_name = 'CA' )
+mean( sub_saeb_df[ , "provider_enumeration_year" ] )
+var( saeb_df[ , "provider_enumeration_year" ] )
 
-dbGetQuery( db , 
-	"SELECT 
-		VARIANCE( provider_enumeration_year ) , 
-		STDEV( provider_enumeration_year ) 
-	FROM npi" 
+tapply(
+	saeb_df[ , "provider_enumeration_year" ] ,
+	saeb_df[ , "provider_gender_code" ] ,
+	var 
 )
-
-dbGetQuery( db , 
-	"SELECT 
-		provider_gender_code , 
-		VARIANCE( provider_enumeration_year ) AS var_provider_enumeration_year ,
-		STDEV( provider_enumeration_year ) AS stddev_provider_enumeration_year
-	FROM npi 
-	GROUP BY provider_gender_code" 
-)
-saeb_slim_df <- 
-	dbGetQuery( db , 
-		"SELECT 
-			provider_enumeration_year , 
-			individual ,
-			is_sole_proprietor
-		FROM npi" 
-	)
-
-t.test( provider_enumeration_year ~ individual , saeb_slim_df )
-this_table <-
-	table( saeb_slim_df[ , c( "individual" , "is_sole_proprietor" ) ] )
+t.test( provider_enumeration_year ~ individual , saeb_df )
+this_table <- table( saeb_df[ , c( "individual" , "is_sole_proprietor" ) ] )
 
 chisq.test( this_table )
 glm_result <- 
 	glm( 
 		provider_enumeration_year ~ individual + is_sole_proprietor , 
-		data = saeb_slim_df
+		data = saeb_df
 	)
 
 summary( glm_result )
 library(dplyr)
-library(dbplyr)
-dplyr_db <- dplyr::src_sqlite( dbdir )
-saeb_tbl <- tbl( dplyr_db , 'npi' )
+saeb_tbl <- tbl_df( saeb_df )
 saeb_tbl %>%
 	summarize( mean = mean( provider_enumeration_year ) )
 
 saeb_tbl %>%
 	group_by( provider_gender_code ) %>%
 	summarize( mean = mean( provider_enumeration_year ) )
-dbGetQuery( db , "SELECT COUNT(*) FROM npi" )
+dbGetQuery( db , "SELECT COUNT(*) FROM " )
 }
