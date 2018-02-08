@@ -7,7 +7,7 @@ this_sample_break <- Sys.getenv( "this_sample_break" )
 saeb_cat <- get_catalog( "saeb" , output_dir = file.path( getwd() ) )
 record_categories <- ceiling( seq( nrow( saeb_cat ) ) / ceiling( nrow( saeb_cat ) / 3 ) )
 saeb_cat <- saeb_cat[ record_categories == this_sample_break , ]
-lodown( "saeb" , saeb_cat )
+saeb_cat <- lodown( "saeb" , saeb_cat )
 if( any( saeb_cat$year == 2015 ) ){
 column_names <-
 	names( 
